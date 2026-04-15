@@ -59,8 +59,8 @@ public class Pet {
     }
 
     public static class Category {
-        public int id;
-        public String name;
+        private int id;
+        private String name;
 
         public int getId() {
             return id;
@@ -80,8 +80,8 @@ public class Pet {
     }
 
     public static class Tag {
-        public int id;
-        public String name;
+        private int id;
+        private String name;
 
         public int getId() {
             return id;
