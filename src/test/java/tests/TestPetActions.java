@@ -97,8 +97,7 @@ public class TestPetActions {
     @CsvSource({
             "765, Kittie, available",
             "787, Minnie, pending",
-            "798, Blacky, sold",
-            "734, Snow, missing"
+            "798, Blacky, sold"
     })
     @Feature("Pet")
     @Severity(SeverityLevel.CRITICAL)
@@ -123,12 +122,44 @@ public class TestPetActions {
                 assertEquals(200, response.getStatusCode(), "Received code does not match, response received: " + responseBody)
         );
 
-        step("Check parameters of added pet to match the expectation", () -> {
+        step("Check added pet parameters against request", () -> {
                     Pet addedPet = response.as(Pet.class);
-                    assertEquals(pet.getId(), addedPet.getId(), "Received Id does not match");
+                    assertEquals(pet.getId(), addedPet.getId(), "Received id does not match");
                     assertEquals(pet.getName(), addedPet.getName(), "Received name does not match");
                     assertEquals(pet.getStatus(), addedPet.getStatus(), "Received status does not match");
                 }
+        );
+    }
+
+    @ParameterizedTest(name = "Add new pet with invalid status")
+    @CsvSource({
+            "987, Lily, missing"
+    })
+    @Feature("Pet")
+    @Severity(SeverityLevel.CRITICAL)
+    @Owner("ksenia miticheva")
+    public void testAddNewPetWithInvalidStatus(int id, String name, String status) {
+        Pet pet = new Pet();
+        pet.setId(id);
+        pet.setName(name);
+        pet.setStatus(status);
+
+        Response response = step("Send POST request to add new pet with invalid status", () ->
+                given()
+                        .contentType(ContentType.JSON)
+                        .header("Accept", "application/json")
+                        .body(pet)
+                        .when()
+                        .post(BASE_URL + "pet"));
+
+        String responseBody = response.getBody().asString();
+
+        step("Check status code to be equal 400", () ->
+                assertEquals(400, response.getStatusCode(), "Received status code does not match, received response: " + responseBody)
+        );
+
+        step("Check response body", () ->
+            assertEquals("Invalid pet status. Valid values: [available, pending, sold]", responseBody, "Received response does not match")
         );
     }
 }
