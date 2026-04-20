@@ -14,6 +14,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import static io.qameta.allure.Allure.step;
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class TestPetActions {
     public static final String BASE_URL = "http://5.181.109.28:9090/api/v3/";
@@ -95,14 +96,15 @@ public class TestPetActions {
 
     @ParameterizedTest(name = "Adding a pet with status {2}")
     @CsvSource({
-            "765, Kittie, available",
-            "787, Minnie, pending",
-            "798, Blacky, sold"
+            "765, Kittie, available, 200",
+            "787, Minnie, pending, 200",
+            "798, Blacky, sold, 200",
+            "987, Lily, missing, 400"
     })
     @Feature("Pet")
     @Severity(SeverityLevel.CRITICAL)
     @Owner("ksenia miticheva")
-    public void testAddNewPet(int id, String name, String status) {
+    public void testAddNewPet(int id, String name, String status, int statusCode) {
         Pet pet = new Pet();
         pet.setId(id);
         pet.setName(name);
@@ -119,47 +121,27 @@ public class TestPetActions {
         String responseBody = response.getBody().asString();
 
         step("Check status code to be equal 200", () ->
-                assertEquals(200, response.getStatusCode(), "Received code does not match, response received: " + responseBody)
+                assertEquals(statusCode, response.getStatusCode(), "Received code does not match, response received: " + responseBody)
         );
 
-        step("Check added pet parameters against request", () -> {
-                    Pet addedPet = response.as(Pet.class);
-                    assertEquals(pet.getId(), addedPet.getId(), "Received id does not match");
-                    assertEquals(pet.getName(), addedPet.getName(), "Received name does not match");
-                    assertEquals(pet.getStatus(), addedPet.getStatus(), "Received status does not match");
-                }
-        );
-    }
-
-    @ParameterizedTest(name = "Add new pet with invalid status")
-    @CsvSource({
-            "987, Lily, missing"
-    })
-    @Feature("Pet")
-    @Severity(SeverityLevel.CRITICAL)
-    @Owner("ksenia miticheva")
-    public void testAddNewPetWithInvalidStatus(int id, String name, String status) {
-        Pet pet = new Pet();
-        pet.setId(id);
-        pet.setName(name);
-        pet.setStatus(status);
-
-        Response response = step("Send POST request to add new pet with invalid status", () ->
-                given()
-                        .contentType(ContentType.JSON)
-                        .header("Accept", "application/json")
-                        .body(pet)
-                        .when()
-                        .post(BASE_URL + "pet"));
-
-        String responseBody = response.getBody().asString();
-
-        step("Check status code to be equal 400", () ->
-                assertEquals(400, response.getStatusCode(), "Received status code does not match, received response: " + responseBody)
-        );
-
-        step("Check response body", () ->
-            assertEquals("Invalid pet status. Valid values: [available, pending, sold]", responseBody, "Received response does not match")
-        );
+        if (statusCode == 200) {
+            step("Check added pet parameters against request", () -> {
+                        Pet addedPet = response.as(Pet.class);
+                        assertEquals(pet.getId(), addedPet.getId(), "Received id does not match");
+                        assertEquals(pet.getName(), addedPet.getName(), "Received name does not match");
+                        assertEquals(pet.getStatus(), addedPet.getStatus(), "Received status does not match");
+                    }
+            );
+        } else if (statusCode == 400) {
+            step("Check response body", () ->
+                    assertEquals("Invalid pet status. Valid values: [available, pending, sold]", responseBody, "Received response does not match")
+            );
+        } else {
+            step("Reveal unexpected status code", () -> {
+                    System.out.println("Received status code:" + response.getStatusCode());
+                    System.out.println("Received response" + responseBody);
+                    fail("Test failed, unexpected code received" + response.getStatusCode());
+            });
+        }
     }
 }
